@@ -1,0 +1,42 @@
+require('dotenv').config({ path: require('path').resolve(__dirname, '../.env') })
+const express           = require('express')
+const cors              = require('cors')
+const morgan            = require('morgan')
+const helmet            = require('helmet')
+
+const authRoutes        = require('./routes/auth.routes')
+const productosRoutes   = require('./routes/productos.routes')
+const categoriasRoutes  = require('./routes/categorias.routes')
+const coleccionesRoutes = require('./routes/colecciones.routes')
+const variantesRoutes   = require('./routes/variantes.routes')
+const proveedoresRoutes = require('./routes/proveedores.routes')
+const clientesRoutes    = require('./routes/clientes.routes')
+const ventasRoutes      = require('./routes/ventas.routes')
+const comprasRoutes     = require('./routes/compras.routes')
+const reportesRoutes    = require('./routes/reportes.routes')
+const usuariosRoutes    = require('./routes/usuarios.routes')
+
+const app  = express()
+const PORT = process.env.PORT || 4000
+
+app.use(helmet())
+app.use(cors({ origin: process.env.CLIENT_URL || 'http://localhost:5173' }))
+app.use(morgan('dev'))
+app.use(express.json())
+
+app.use('/api/auth',        authRoutes)
+app.use('/api/productos',   productosRoutes)
+app.use('/api/categorias',  categoriasRoutes)
+app.use('/api/colecciones', coleccionesRoutes)
+app.use('/api/variantes',   variantesRoutes)
+app.use('/api/proveedores', proveedoresRoutes)
+app.use('/api/clientes',    clientesRoutes)
+app.use('/api/ventas',      ventasRoutes)
+app.use('/api/compras',     comprasRoutes)
+app.use('/api/reportes',    reportesRoutes)
+app.use('/api/usuarios',    usuariosRoutes)
+
+app.get('/api/health', (_req, res) => res.json({ status: 'ok' }))
+app.use((_req, res) => res.status(404).json({ error: 'Ruta no encontrada' }))
+
+app.listen(PORT, () => console.log(`🚀 Servidor corriendo en http://localhost:${PORT}`))
