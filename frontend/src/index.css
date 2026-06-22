@@ -11,11 +11,23 @@ html, body, #root {
 }
 
 body {
-  font-family: 'Segoe UI', sans-serif;
-  background-color: #fdf6f0;
-  color: #3d2b1f;
+  font-family: 'Inter', 'Segoe UI', sans-serif;
+  background: #0f1117;
+  color: #e2e8f0;
+  font-size: 14px;
 }
 
-button {
-  cursor: pointer;
+button { cursor: pointer; }
+
+::-webkit-scrollbar { width: 4px; height: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #2d3748; border-radius: 2px; }
+
+input, select, textarea {
+  font-family: inherit;
+  font-size: 14px;
 }
+
+table { border-collapse: collapse; width: 100%; }
+
+@keyframes spin { to { transform: rotate(360deg); } }

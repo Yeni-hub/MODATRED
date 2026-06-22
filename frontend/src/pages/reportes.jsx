@@ -1,81 +1,154 @@
 import { useState, useEffect } from 'react'
-import axios from 'axios'
-import { useAuth } from '../context/AuthContext'
+import api from '../services/api'
+import tokens from '../styles/tokens'
+import SectionHeader from '../components/ui/SectionHeader'
+import Button from '../components/ui/Button'
+import Badge from '../components/ui/Badge'
+import TopProductosWidget from '../components/common/TopProductosWidget'
+import IngresosColeccionWidget from '../components/common/IngresosColeccionWidget'
 
-const API = 'http://localhost:4000/api'
+const { colors, spacing, radius, typography, shadows, transitions } = tokens
+const t = colors.warm
+
+const safeArray = (data) => Array.isArray(data) ? data.filter(x => x != null) : []
 
 export default function Reportes() {
-  const { token } = useAuth()
-  const headers   = { Authorization: `Bearer ${token}` }
+  const [masVendidos, setMasVendidos] = useState([])
+  const [ingresosColeccion, setIngresosColeccion] = useState([])
+  const [ventasPeriodo, setVentasPeriodo] = useState([])
+  const [porVendedor, setPorVendedor] = useState([])
+  const [porCliente, setPorCliente] = useState([])
+  const [sinMovimiento, setSinMovimiento] = useState([])
+  const [cargando, setCargando] = useState(true)
+  const [desde, setDesde] = useState('')
+  const [hasta, setHasta] = useState('')
 
-  const [masVendidos,      setMasVendidos]      = useState([])
-  const [ingresosColeccion,setIngresosColeccion]= useState([])
-  const [cargando,         setCargando]         = useState(true)
-
-  const cargar = async () => {
+  const cargar = async (exportar = false) => {
     setCargando(true)
     try {
-      const [mv, ic] = await Promise.all([
-        axios.get(`${API}/reportes/mas-vendidos`,     { headers }),
-        axios.get(`${API}/reportes/ingresos-coleccion`, { headers }),
+      const params = {}
+      if (desde) params.desde = desde
+      if (hasta) params.hasta = hasta
+
+      if (exportar) {
+        const res = await api.get('/reportes/exportar', { params, responseType: 'blob' })
+        const url = URL.createObjectURL(new Blob([res.data], { type: 'text/csv' }))
+        const link = document.createElement('a')
+        link.href = url
+        link.setAttribute('download', 'ventas_export.csv')
+        document.body.appendChild(link)
+        link.click()
+        link.remove()
+        URL.revokeObjectURL(url)
+        setCargando(false)
+        return
+      }
+
+      const [mv, ic, vp, pv, pc, sm] = await Promise.all([
+        api.get('/reportes/mas-vendidos'),
+        api.get('/reportes/ingresos-coleccion'),
+        api.get('/reportes/por-periodo', { params }),
+        api.get('/reportes/por-vendedor'),
+        api.get('/reportes/por-cliente'),
+        api.get('/reportes/productos-sin-movimiento'),
       ])
-      setMasVendidos(mv.data)
-      setIngresosColeccion(ic.data)
-    } catch { } finally { setCargando(false) }
+      setMasVendidos(safeArray(mv.data))
+      setIngresosColeccion(safeArray(ic.data))
+      setVentasPeriodo(safeArray(vp.data))
+      setPorVendedor(safeArray(pv.data))
+      setPorCliente(safeArray(pc.data))
+      setSinMovimiento(safeArray(sm.data))
+    } catch (err) { console.error(err) } finally { setCargando(false) }
   }
 
   useEffect(() => { cargar() }, [])
 
-  const maxIngresos = Math.max(...ingresosColeccion.map(c => c.ingresos_brutos || 0), 1)
-
   return (
     <div style={s.pagina}>
-      <div style={s.header}>
-        <div>
-          <h1 style={s.titulo}>Reportes</h1>
-          <p style={s.subtitulo}>Análisis de ventas e ingresos de ModaTrend</p>
+      <SectionHeader
+        title="Reportes"
+        subtitle="Análisis de ventas e ingresos de ModaTrend"
+        action={<Button onClick={() => cargar()} icon="🔄">Actualizar</Button>}
+        theme="warm"
+      />
+
+      <div style={s.filtros}>
+        <div style={s.filtroGrupo}>
+          <label style={s.filtroLabel}>Desde</label>
+          <input type="date" value={desde} onChange={e => setDesde(e.target.value)} style={s.filtroInput} />
         </div>
-        <button onClick={cargar} style={s.btnRefresh}>🔄 Actualizar</button>
+        <div style={s.filtroGrupo}>
+          <label style={s.filtroLabel}>Hasta</label>
+          <input type="date" value={hasta} onChange={e => setHasta(e.target.value)} style={s.filtroInput} />
+        </div>
+        <Button onClick={() => cargar()} icon="📊">Filtrar</Button>
+        <Button variant="success" onClick={() => cargar(true)} icon="📥">Exportar CSV</Button>
       </div>
 
-      {cargando ? <div style={s.cargando}>Cargando reportes...</div> : (
+      {cargando ? <div style={s.emptyState}>Cargando reportes...</div> : (
         <div style={s.grid}>
 
-          {/* Productos más vendidos */}
           <div style={s.panel}>
             <div style={s.panelHeader}>
-              <h2 style={s.panelTitulo}>🏆 Productos más vendidos</h2>
+              <h2 style={s.panelTitle}>🏆 Productos más vendidos</h2>
             </div>
-            {masVendidos.length === 0 ? (
-              <div style={s.vacio}>Sin datos de ventas aún</div>
+            <div style={{ ...s.panelBody, padding: 0 }}>
+              <TopProductosWidget
+                data={masVendidos}
+                styles={s}
+                rankStyle={(idx) => ({
+                  background: idx === 0 ? '#ffd700' : idx === 1 ? '#c0c0c0' : idx === 2 ? '#cd7f32' : t.background,
+                  color: idx < 3 ? t.textPrimary : t.textSecondary,
+                })}
+              />
+            </div>
+          </div>
+
+          <div style={s.panel}>
+            <div style={s.panelHeader}>
+              <h2 style={s.panelTitle}>✨ Ingresos por colección</h2>
+            </div>
+            <div style={{ ...s.panelBody, padding: 0 }}>
+              <IngresosColeccionWidget
+                data={ingresosColeccion}
+                styles={s}
+                barColors={[t.primary, t.primary, t.primary, t.primary]}
+              />
+            </div>
+          </div>
+
+          <div style={{ ...s.panel, gridColumn: '1 / -1' }}>
+            <div style={s.panelHeader}>
+              <h2 style={s.panelTitle}>📅 Ventas por período</h2>
+              <Badge theme="warm" variant="info" size="sm">{ventasPeriodo.length} ventas</Badge>
+            </div>
+            {ventasPeriodo.length === 0 ? (
+              <div style={s.emptyData}>Selecciona un rango de fechas y presiona Filtrar</div>
             ) : (
               <table style={s.tabla}>
                 <thead>
                   <tr>
-                    {['#','Producto','Categoría','Unidades','Ingresos'].map(h => (
+                    {['ID', 'Fecha', 'Cliente', 'Vendedor', 'Total', 'Método pago', 'Estado'].map(h => (
                       <th key={h} style={s.th}>{h}</th>
                     ))}
                   </tr>
                 </thead>
                 <tbody>
-                  {masVendidos.map((p, idx) => (
-                    <tr key={idx} style={s.tr}>
+                  {safeArray(ventasPeriodo).map(v => (
+                    <tr key={v.id_venta} style={s.tr}>
+                      <td style={s.td}><Badge theme="warm" variant="neutral" size="sm">#{v.id_venta}</Badge></td>
+                      <td style={s.td}>{v.fecha?.split('T')[0] || v.fecha}</td>
+                      <td style={s.td}>{v.cliente}</td>
+                      <td style={s.td}>{v.vendedor}</td>
                       <td style={s.td}>
-                        <span style={{
-                          ...s.rankBadge,
-                          background: idx === 0 ? '#ffd700' : idx === 1 ? '#c0c0c0' : idx === 2 ? '#cd7f32' : '#f5ede6',
-                          color:      idx < 3 ? '#2a1a12' : '#9e7b65',
-                        }}>
-                          {idx + 1}
-                        </span>
+                        <strong style={{ color: t.primary }}>${Number(v.total_neto || 0).toLocaleString('es-CO')}</strong>
                       </td>
+                      <td style={s.td}>{v.metodo_pago}</td>
                       <td style={s.td}>
-                        <div style={{ fontWeight: '600' }}>{p.nombre}</div>
-                        <div style={{ fontSize: '0.8rem', color: '#9e7b65' }}>{p.referencia}</div>
+                        <Badge theme="warm" variant={v.estado === 'confirmada' ? 'success' : 'danger'} size="sm">
+                          {v.estado}
+                        </Badge>
                       </td>
-                      <td style={s.td}>{p.categoria}</td>
-                      <td style={s.td}><span style={s.unidadesBadge}>{p.unidades_vendidas} uds</span></td>
-                      <td style={s.td}><strong style={{ color: '#c47c5a' }}>${Number(p.ingresos_totales || 0).toLocaleString('es-CO')}</strong></td>
                     </tr>
                   ))}
                 </tbody>
@@ -83,39 +156,115 @@ export default function Reportes() {
             )}
           </div>
 
-          {/* Ingresos por colección */}
           <div style={s.panel}>
             <div style={s.panelHeader}>
-              <h2 style={s.panelTitulo}>✨ Ingresos por colección</h2>
+              <h2 style={s.panelTitle}>👤 Ventas por vendedor</h2>
             </div>
-            {ingresosColeccion.length === 0 ? (
-              <div style={s.vacio}>Sin datos de ventas aún</div>
+            {porVendedor.length === 0 ? (
+              <div style={s.emptyData}>Sin datos</div>
             ) : (
-              <div style={s.colecciones}>
-                {ingresosColeccion.map((c, idx) => (
-                  <div key={idx} style={s.coleccionItem}>
-                    <div style={s.coleccionInfo}>
-                      <div style={s.coleccionNombre}>{c.coleccion}</div>
-                      <div style={s.coleccionSub}>{c.temporada} · {c.anio}</div>
-                    </div>
-                    <div style={s.coleccionDatos}>
-                      <div style={s.barraWrap}>
-                        <div style={{
-                          ...s.barra,
-                          width: `${(c.ingresos_brutos / maxIngresos) * 100}%`
-                        }} />
-                      </div>
-                      <div style={s.coleccionStats}>
-                        <span style={s.statItem}>🛍️ {c.numero_ventas} ventas</span>
-                        <span style={s.statItem}>📦 {c.unidades_vendidas} uds</span>
-                        <span style={{ ...s.statItem, color: '#c47c5a', fontWeight: '700' }}>
-                          ${Number(c.ingresos_brutos || 0).toLocaleString('es-CO')}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
+              <table style={s.tabla}>
+                <thead>
+                  <tr>
+                    {['Vendedor', 'Ventas', 'Ingresos', 'Ticket prom.'].map(h => (
+                      <th key={h} style={s.th}>{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {safeArray(porVendedor).map((v, idx) => (
+                    <tr key={idx} style={s.tr}>
+                      <td style={s.td}>
+                        <div style={{ fontWeight: typography.fontWeight.semibold }}>{v.vendedor}</div>
+                        <div style={{ fontSize: typography.fontSize.small, color: t.textSecondary }}>{v.email}</div>
+                      </td>
+                      <td style={s.td}>
+                        <Badge theme="warm" variant="neutral" size="sm">{v.total_ventas} ventas</Badge>
+                      </td>
+                      <td style={s.td}>
+                        <strong style={{ color: t.primary }}>${Number(v.ingresos_totales || 0).toLocaleString('es-CO')}</strong>
+                      </td>
+                      <td style={s.td}>${Number(v.ticket_promedio || 0).toLocaleString('es-CO')}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </div>
+
+          <div style={s.panel}>
+            <div style={s.panelHeader}>
+              <h2 style={s.panelTitle}>👥 Ventas por cliente</h2>
+            </div>
+            {porCliente.length === 0 ? (
+              <div style={s.emptyData}>Sin datos</div>
+            ) : (
+              <table style={s.tabla}>
+                <thead>
+                  <tr>
+                    {['Cliente', 'Documento', 'Ventas', 'Ingresos', 'Última compra'].map(h => (
+                      <th key={h} style={s.th}>{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {safeArray(porCliente).map((c, idx) => (
+                    <tr key={idx} style={s.tr}>
+                      <td style={s.td}>
+                        <div style={{ fontWeight: typography.fontWeight.semibold }}>{c.cliente}</div>
+                      </td>
+                      <td style={s.td}><Badge theme="warm" variant="neutral" size="sm">{c.documento}</Badge></td>
+                      <td style={s.td}>
+                        <Badge theme="warm" variant="neutral" size="sm">{c.total_ventas} ventas</Badge>
+                      </td>
+                      <td style={s.td}>
+                        <strong style={{ color: t.primary }}>${Number(c.ingresos_totales || 0).toLocaleString('es-CO')}</strong>
+                      </td>
+                      <td style={s.td}>{c.ultima_compra?.split('T')[0] || c.ultima_compra || '—'}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </div>
+
+          <div style={{ ...s.panel, gridColumn: '1 / -1' }}>
+            <div style={s.panelHeader}>
+              <h2 style={s.panelTitle}>📦 Productos sin movimiento</h2>
+              <Badge theme="warm" variant="info" size="sm">{sinMovimiento.length} productos</Badge>
+            </div>
+            {sinMovimiento.length === 0 ? (
+              <div style={s.emptyData}>Todos los productos tienen ventas registradas</div>
+            ) : (
+              <table style={s.tabla}>
+                <thead>
+                  <tr>
+                    {['Referencia', 'Producto', 'Categoría', 'Colección', 'Stock', 'Estado'].map(h => (
+                      <th key={h} style={s.th}>{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {safeArray(sinMovimiento).map((p, idx) => (
+                    <tr key={idx} style={s.tr}>
+                      <td style={s.td}><Badge theme="warm" variant="neutral" size="sm">{p.referencia}</Badge></td>
+                      <td style={s.td}>
+                        <div style={{ fontWeight: typography.fontWeight.semibold }}>{p.nombre}</div>
+                      </td>
+                      <td style={s.td}>{p.categoria}</td>
+                      <td style={s.td}>{p.coleccion}</td>
+                      <td style={s.td}>
+                        <Badge theme="warm" variant={p.stock_total <= 5 ? 'danger' : 'success'} size="sm">
+                          {p.stock_total} uds
+                        </Badge>
+                      </td>
+                      <td style={s.td}>
+                        <Badge theme="warm" variant="warning" size="sm">Sin ventas</Badge>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             )}
           </div>
 
@@ -126,31 +275,112 @@ export default function Reportes() {
 }
 
 const s = {
-  pagina:          { padding: '36px 40px', height: '100%', overflowY: 'auto', background: '#f5ede6' },
-  header:          { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '28px' },
-  titulo:          { fontSize: '1.8rem', fontWeight: '600', color: '#2a1a12' },
-  subtitulo:       { fontSize: '0.95rem', color: '#9e7b65', marginTop: '4px' },
-  btnRefresh:      { background: '#f7e6d8', color: '#c47c5a', border: 'none', borderRadius: '10px', padding: '12px 20px', fontSize: '1rem', fontWeight: '600', cursor: 'pointer' },
-  cargando:        { textAlign: 'center', padding: '60px', color: '#9e7b65' },
-  grid:            { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px' },
-  panel:           { background: '#fff', borderRadius: '14px', overflow: 'hidden', boxShadow: '0 2px 12px rgba(0,0,0,0.06)' },
-  panelHeader:     { padding: '20px 24px', borderBottom: '1px solid #f0e6de', background: '#fffaf7' },
-  panelTitulo:     { fontSize: '1.1rem', fontWeight: '600', color: '#2a1a12' },
-  vacio:           { padding: '40px', textAlign: 'center', color: '#9e7b65' },
-  tabla:           { width: '100%', borderCollapse: 'collapse' },
-  th:              { padding: '12px 16px', textAlign: 'left', fontSize: '0.78rem', color: '#9e7b65', fontWeight: '600', letterSpacing: '0.5px', borderBottom: '1px solid #f0e6de', background: '#fffaf7' },
-  tr:              { borderBottom: '0.5px solid #f7f0eb' },
-  td:              { padding: '12px 16px', fontSize: '0.9rem', color: '#2a1a12' },
-  rankBadge:       { width: '28px', height: '28px', borderRadius: '50%', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.85rem', fontWeight: '700' },
-  unidadesBadge:   { background: '#f7e6d8', color: '#c47c5a', padding: '3px 10px', borderRadius: '20px', fontSize: '0.85rem', fontWeight: '600' },
-  colecciones:     { padding: '20px 24px', display: 'flex', flexDirection: 'column', gap: '20px' },
-  coleccionItem:   { display: 'flex', flexDirection: 'column', gap: '8px' },
-  coleccionInfo:   { display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' },
-  coleccionNombre: { fontSize: '0.95rem', fontWeight: '600', color: '#2a1a12' },
-  coleccionSub:    { fontSize: '0.78rem', color: '#9e7b65' },
-  coleccionDatos:  { display: 'flex', flexDirection: 'column', gap: '6px' },
-  barraWrap:       { height: '8px', background: '#f5ede6', borderRadius: '4px', overflow: 'hidden' },
-  barra:           { height: '100%', background: '#c47c5a', borderRadius: '4px', transition: 'width 0.5s' },
-  coleccionStats:  { display: 'flex', gap: '16px', flexWrap: 'wrap' },
-  statItem:        { fontSize: '0.82rem', color: '#7a5c4a' },
+  pagina: {
+    display: 'flex', flexDirection: 'column', gap: spacing.lg,
+    height: '100%', overflowY: 'auto',
+  },
+  emptyState: {
+    textAlign: 'center', padding: spacing.xl, color: t.textSecondary,
+    fontSize: typography.fontSize.lead,
+  },
+  filtros: {
+    display: 'flex', gap: spacing.sm, flexWrap: 'wrap', alignItems: 'flex-end',
+  },
+  filtroGrupo: {
+    display: 'flex', flexDirection: 'column', gap: spacing.xs,
+  },
+  filtroLabel: {
+    fontSize: typography.fontSize.small,
+    fontWeight: typography.fontWeight.semibold, color: t.textLabel,
+  },
+  filtroInput: {
+    padding: `${spacing.sm} ${spacing.md}`,
+    borderRadius: radius.md,
+    border: `1.5px solid ${t.border}`,
+    fontSize: typography.fontSize.lead,
+    background: t.surface, outline: 'none', color: t.textPrimary,
+  },
+  grid: {
+    display: 'grid', gridTemplateColumns: '1fr 1fr', gap: spacing.lg,
+  },
+  panel: {
+    background: t.surface, borderRadius: radius.lg,
+    overflow: 'hidden', boxShadow: shadows.sm,
+  },
+  panelHeader: {
+    padding: `${spacing.md} ${spacing.lg}`,
+    borderBottom: `1px solid ${t.borderLight}`,
+    background: t.surface,
+    display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+  },
+  panelTitle: {
+    fontSize: typography.fontSize.h3,
+    fontWeight: typography.fontWeight.semibold, color: t.textPrimary, margin: 0,
+  },
+  panelBody: { padding: spacing.xs, overflowY: 'auto', flex: 1 },
+  emptyData: {
+    padding: spacing.xl, textAlign: 'center', color: t.textSecondary,
+  },
+  tabla: { width: '100%', borderCollapse: 'collapse' },
+  th: {
+    padding: `${spacing.sm} ${spacing.md}`,
+    textAlign: 'left',
+    fontSize: typography.fontSize.small,
+    color: '#fff',
+    fontWeight: typography.fontWeight.semibold,
+    letterSpacing: '0.5px',
+    borderBottom: `1px solid ${t.borderLight}`,
+    background: '#F78DA7',
+  },
+  tr: { borderBottom: `1px solid ${t.borderLight}` },
+  td: {
+    padding: `${spacing.sm} ${spacing.md}`,
+    fontSize: typography.fontSize.lead,
+    color: t.textPrimary,
+  },
+
+  /* Widget alias keys (compat con widgets Dashboard v2) */
+  empty: { padding: spacing.xl, textAlign: 'center', color: t.textSecondary },
+  rankNum: {
+    width: '28px', height: '28px', borderRadius: radius.full,
+    display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+    fontSize: '0.85rem', fontWeight: typography.fontWeight.bold,
+  },
+  prodNombre: { fontWeight: typography.fontWeight.semibold },
+  prodRef: { fontSize: typography.fontSize.small, color: t.textSecondary },
+  catBadge: { color: t.textPrimary },
+  unidBadge: {
+    background: t.secondary, color: t.primary,
+    padding: `${spacing.xs} ${spacing.sm}`,
+    borderRadius: radius.xl, fontSize: typography.fontSize.caption,
+    fontWeight: typography.fontWeight.semibold,
+  },
+  ingresosVal: { color: t.primary, fontWeight: typography.fontWeight.bold },
+  colItem: {
+    display: 'flex', flexDirection: 'column', gap: spacing.sm,
+    padding: `${spacing.md} ${spacing.lg}`,
+    borderBottom: `1px solid ${t.borderLight}`,
+  },
+  colTop: { display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' },
+  colNombre: {
+    fontSize: typography.fontSize.lead,
+    fontWeight: typography.fontWeight.semibold, color: t.textPrimary,
+  },
+  colSub: { fontSize: typography.fontSize.small, color: t.textSecondary },
+  colVal: {
+    color: t.primary, fontWeight: typography.fontWeight.bold,
+    fontSize: typography.fontSize.lead,
+  },
+  barTrack: {
+    height: '8px', background: t.background,
+    borderRadius: radius.sm, overflow: 'hidden',
+  },
+  barFill: {
+    height: '100%', background: t.primary, borderRadius: radius.sm,
+    transition: `width ${transitions.slow}`,
+  },
+  colStats: {
+    display: 'flex', gap: spacing.md, flexWrap: 'wrap',
+    fontSize: typography.fontSize.body, color: t.textLabel,
+  },
 }

@@ -15,8 +15,8 @@ router.get('/', async (req, res) => {
              c.nombre AS cliente, c.documento,
              u.nombre AS vendedor
       FROM ventas v
-      JOIN clientes c ON c.id_cliente = v.id_cliente
-      JOIN usuarios u ON u.id_usuario = v.id_usuario
+      LEFT JOIN clientes c ON c.id_cliente = v.id_cliente
+      LEFT JOIN usuarios u ON u.id_usuario = v.id_usuario
       WHERE 1=1
     `
     const params = []
@@ -25,6 +25,7 @@ router.get('/', async (req, res) => {
     const [rows] = await pool.query(sql, params)
     res.json(rows)
   } catch (err) {
+    console.error('Error al listar ventas:', err)
     res.status(500).json({ error: 'Error al listar ventas' })
   }
 })
@@ -36,8 +37,8 @@ router.get('/:id', async (req, res) => {
       SELECT v.*, c.nombre AS cliente, c.documento, c.saldo_favor,
              u.nombre AS vendedor
       FROM ventas v
-      JOIN clientes c ON c.id_cliente = v.id_cliente
-      JOIN usuarios u ON u.id_usuario = v.id_usuario
+      LEFT JOIN clientes c ON c.id_cliente = v.id_cliente
+      LEFT JOIN usuarios u ON u.id_usuario = v.id_usuario
       WHERE v.id_venta = ?
     `, [req.params.id])
 
@@ -53,6 +54,7 @@ router.get('/:id', async (req, res) => {
 
     res.json({ ...venta[0], detalle })
   } catch (err) {
+    console.error('Error al obtener venta:', err)
     res.status(500).json({ error: 'Error al obtener venta' })
   }
 })
@@ -152,6 +154,7 @@ router.put('/:id/estado', async (req, res) => {
     await pool.query('UPDATE ventas SET estado = ? WHERE id_venta = ?', [estado, req.params.id])
     res.json({ mensaje: `Estado actualizado a: ${estado}` })
   } catch (err) {
+    console.error('Error al actualizar estado:', err)
     res.status(500).json({ error: 'Error al actualizar estado' })
   }
 })
@@ -186,6 +189,7 @@ router.put('/:id/anular', async (req, res) => {
     res.json({ mensaje: 'Venta anulada y stock restaurado' })
   } catch (err) {
     await conn.rollback()
+    console.error('Error al anular venta:', err)
     res.status(500).json({ error: 'Error al anular venta' })
   } finally {
     conn.release()
@@ -205,6 +209,7 @@ router.post('/saldo-favor', async (req, res) => {
     )
     res.json({ mensaje: `Saldo de $${monto} agregado exitosamente` })
   } catch (err) {
+    console.error('Error al agregar saldo:', err)
     res.status(500).json({ error: 'Error al agregar saldo' })
   }
 })

@@ -1,19 +1,23 @@
 import { useState, useEffect } from 'react'
-import axios from 'axios'
-import { useAuth } from '../context/AuthContext'
+import api from '../services/api'
+import tokens from '../styles/tokens'
+import SectionHeader from '../components/ui/SectionHeader'
+import Button from '../components/ui/Button'
+import Badge from '../components/ui/Badge'
+import Modal from '../components/ui/Modal'
+import ConfirmDialog from '../components/ui/ConfirmDialog'
 
-const API = 'http://localhost:4000/api'
+const { colors, spacing, radius, typography, shadows, transitions } = tokens
+const t = colors.warm
+const a = colors.accent
 
 export default function Usuarios() {
-  const { token } = useAuth()
-  const headers   = { Authorization: `Bearer ${token}` }
-
-  const [usuarios,      setUsuarios]      = useState([])
-  const [cargando,      setCargando]      = useState(true)
-  const [modal,         setModal]         = useState(false)
-  const [editando,      setEditando]      = useState(null)
+  const [usuarios, setUsuarios] = useState([])
+  const [cargando, setCargando] = useState(true)
+  const [modal, setModal] = useState(false)
+  const [editando, setEditando] = useState(null)
   const [confirmDelete, setConfirmDelete] = useState(null)
-  const [alerta,        setAlerta]        = useState({ visible: false, mensaje: '', tipo: 'exito' })
+  const [alerta, setAlerta] = useState({ visible: false, mensaje: '', tipo: 'exito' })
   const [form, setForm] = useState({
     nombre: '', email: '', password: '', rol: 'vendedor'
   })
@@ -26,7 +30,7 @@ export default function Usuarios() {
   const cargar = async () => {
     setCargando(true)
     try {
-      const { data } = await axios.get(`${API}/usuarios`, { headers })
+      const { data } = await api.get('/usuarios')
       setUsuarios(data)
     } catch { } finally { setCargando(false) }
   }
@@ -60,10 +64,10 @@ export default function Usuarios() {
     }
     try {
       if (editando) {
-        await axios.put(`${API}/usuarios/${editando.id_usuario}`, form, { headers })
+        await api.put(`/usuarios/${editando.id_usuario}`, form)
         mostrarAlerta('Usuario actualizado exitosamente')
       } else {
-        await axios.post(`${API}/usuarios`, form, { headers })
+        await api.post('/usuarios', form)
         mostrarAlerta('Usuario creado exitosamente')
       }
       setModal(false)
@@ -76,7 +80,7 @@ export default function Usuarios() {
   const toggleActivo = async (u) => {
     try {
       const nuevoEstado = u.activo === 1 ? 0 : 1
-      await axios.put(`${API}/usuarios/${u.id_usuario}`, { ...u, activo: nuevoEstado }, { headers })
+      await api.put(`/usuarios/${u.id_usuario}`, { ...u, activo: nuevoEstado })
       mostrarAlerta(nuevoEstado === 1 ? '✅ Usuario reactivado' : '📁 Usuario desactivado')
       setConfirmDelete(null)
       cargar()
@@ -90,50 +94,45 @@ export default function Usuarios() {
       {alerta.visible && (
         <div style={{
           ...s.alerta,
-          background: alerta.tipo === 'exito' ? '#e6f4ea' : '#fff5f5',
-          border:     alerta.tipo === 'exito' ? '1px solid #b7dfbe' : '1px solid #fed7d7',
-          color:      alerta.tipo === 'exito' ? '#2d7a3a' : '#c53030',
+          background: alerta.tipo === 'exito' ? a.lilacBg : '#FDF2F5',
+          borderColor: alerta.tipo === 'exito' ? a.lilac : a.rose,
+          color: alerta.tipo === 'exito' ? t.success : t.danger,
         }}>
           {alerta.tipo === 'exito' ? '✅' : '❌'} {alerta.mensaje}
         </div>
       )}
 
-      <div style={s.header}>
-        <div>
-          <h1 style={s.titulo}>Usuarios</h1>
-          <p style={s.subtitulo}>Gestiona los usuarios del sistema ModaTrend</p>
-        </div>
-        <button onClick={abrirNuevo} style={s.btnNuevo}>+ Nuevo usuario</button>
-      </div>
+      <SectionHeader
+        title="Usuarios"
+        subtitle="Gestiona los usuarios del sistema ModaTrend"
+        action={<Button onClick={abrirNuevo} icon="+">Nuevo usuario</Button>}
+        theme="warm"
+      />
 
-      {cargando ? <div style={s.cargando}>Cargando...</div> : (
+      {cargando ? (
+        <div style={s.emptyState}>Cargando...</div>
+      ) : usuarios.length === 0 ? (
+        <div style={s.emptyState}>No hay usuarios registrados</div>
+      ) : (
         <div style={s.grid}>
           {usuarios.map(u => (
             <div key={u.id_usuario} style={{ ...s.card, opacity: u.activo === 0 ? 0.6 : 1 }}>
               <div style={s.cardHeader}>
                 <div style={{
                   ...s.avatar,
-                  background: u.rol === 'admin' ? '#c47c5a' : '#7b9e87',
+                  background: u.rol === 'admin' ? a.rose : a.lilac,
                 }}>
                   {u.nombre.charAt(0).toUpperCase()}
                 </div>
                 <div>
                   <h3 style={s.cardNombre}>{u.nombre}</h3>
                   <div style={s.badgesFila}>
-                    <span style={{
-                      ...s.rolBadge,
-                      background: u.rol === 'admin' ? '#f7e6d8' : '#e6f4ea',
-                      color:      u.rol === 'admin' ? '#c47c5a' : '#2d7a3a',
-                    }}>
+                    <Badge theme="accent" variant={u.rol === 'admin' ? 'rose' : 'lilac'}>
                       {u.rol === 'admin' ? '👑 Admin' : '🛍️ Vendedor'}
-                    </span>
-                    <span style={{
-                      ...s.estadoBadge,
-                      background: u.activo === 1 ? '#e6f4ea' : '#fef0f0',
-                      color:      u.activo === 1 ? '#2d7a3a' : '#c45a5a',
-                    }}>
+                    </Badge>
+                    <Badge theme="warm" variant={u.activo === 1 ? 'success' : 'danger'}>
                       {u.activo === 1 ? '● Activo' : '● Inactivo'}
-                    </span>
+                    </Badge>
                   </div>
                 </div>
               </div>
@@ -144,137 +143,145 @@ export default function Usuarios() {
               </div>
 
               <div style={s.cardAcciones}>
-                <button onClick={() => abrirEditar(u)} style={s.btnEditar}>✏️ Editar</button>
-                <button
-                  onClick={() => setConfirmDelete(u)}
-                  style={{
-                    ...s.btnToggle,
-                    background: u.activo === 1 ? '#fef0f0' : '#e6f4ea',
-                    color:      u.activo === 1 ? '#c45a5a' : '#2d7a3a',
-                  }}
-                >
+                <Button size="sm" variant="secondary" onClick={() => abrirEditar(u)}>
+                  ✏️ Editar
+                </Button>
+                <Button size="sm" variant={u.activo === 1 ? 'ghost' : 'success'}
+                  onClick={() => setConfirmDelete(u)}>
                   {u.activo === 1 ? '📁 Desactivar' : '♻️ Reactivar'}
-                </button>
+                </Button>
               </div>
             </div>
           ))}
         </div>
       )}
 
-      {/* Modal formulario */}
-      {modal && (
-        <div style={s.modalFondo}>
-          <div style={s.modal}>
-            <div style={s.modalHeader}>
-              <h2 style={s.modalTitulo}>{editando ? 'Editar usuario' : 'Nuevo usuario'}</h2>
-              <button onClick={() => setModal(false)} style={s.btnCerrar}>✕</button>
-            </div>
-            <div style={s.modalBody}>
-              <div style={s.campo}>
-                <label style={s.label}>Nombre completo *</label>
-                <input style={s.input} value={form.nombre}
-                  onChange={e => setForm({...form, nombre: e.target.value})}
-                  placeholder="Nombre del usuario" />
-              </div>
-              <div style={s.campo}>
-                <label style={s.label}>Email *</label>
-                <input style={s.input} type="email" value={form.email}
-                  onChange={e => setForm({...form, email: e.target.value})}
-                  placeholder="correo@modatrend.com" />
-              </div>
-              <div style={s.campo}>
-                <label style={s.label}>
-                  {editando ? 'Nueva contraseña (dejar vacío para no cambiar)' : 'Contraseña *'}
-                </label>
-                <input style={s.input} type="password" value={form.password}
-                  onChange={e => setForm({...form, password: e.target.value})}
-                  placeholder="Mínimo 6 caracteres" />
-              </div>
-              <div style={s.campo}>
-                <label style={s.label}>Rol *</label>
-                <select style={s.input} value={form.rol}
-                  onChange={e => setForm({...form, rol: e.target.value})}>
-                  <option value="vendedor">🛍️ Vendedor</option>
-                  <option value="admin">👑 Administrador</option>
-                </select>
-              </div>
-            </div>
-            <div style={s.modalFooter}>
-              <button onClick={() => setModal(false)} style={s.btnCancelar}>Cancelar</button>
-              <button onClick={guardar} style={s.btnGuardar}>{editando ? '✓ Actualizar' : '✓ Guardar'}</button>
-            </div>
+      <Modal open={modal} onClose={() => setModal(false)}>
+        <Modal.Header title={editando ? 'Editar usuario' : 'Nuevo usuario'} />
+        <Modal.Body>
+          <div style={s.formGroup}>
+            <label style={s.label}>Nombre completo *</label>
+            <input style={s.input} value={form.nombre}
+              onChange={e => setForm({ ...form, nombre: e.target.value })}
+              placeholder="Nombre del usuario" />
           </div>
-        </div>
-      )}
+          <div style={s.formGroup}>
+            <label style={s.label}>Email *</label>
+            <input style={s.input} type="email" value={form.email}
+              onChange={e => setForm({ ...form, email: e.target.value })}
+              placeholder="correo@modatrend.com" />
+          </div>
+          <div style={s.formGroup}>
+            <label style={s.label}>
+              {editando ? 'Nueva contraseña (dejar vacío para no cambiar)' : 'Contraseña *'}
+            </label>
+            <input style={s.input} type="password" value={form.password}
+              onChange={e => setForm({ ...form, password: e.target.value })}
+              placeholder="Mínimo 6 caracteres" />
+          </div>
+          <div style={s.formGroup}>
+            <label style={s.label}>Rol *</label>
+            <select style={s.input} value={form.rol}
+              onChange={e => setForm({ ...form, rol: e.target.value })}>
+              <option value="vendedor">🛍️ Vendedor</option>
+              <option value="admin">👑 Administrador</option>
+            </select>
+          </div>
+        </Modal.Body>
+        <Modal.Footer>
+          <Button theme="warm" variant="ghost" onClick={() => setModal(false)}>Cancelar</Button>
+          <Button theme="warm" variant="primary" onClick={guardar}>
+            {editando ? '✓ Actualizar' : '✓ Guardar'}
+          </Button>
+        </Modal.Footer>
+      </Modal>
 
-      {/* Confirmar */}
-      {confirmDelete && (
-        <div style={s.modalFondo}>
-          <div style={{...s.modal, maxWidth: '420px'}}>
-            <div style={s.modalHeader}>
-              <h2 style={s.modalTitulo}>
-                {confirmDelete.activo === 1 ? '📁 ¿Desactivar usuario?' : '♻️ ¿Reactivar usuario?'}
-              </h2>
-              <button onClick={() => setConfirmDelete(null)} style={s.btnCerrar}>✕</button>
-            </div>
-            <div style={s.modalBody}>
-              <p style={{ color: '#7a5c4a', fontSize: '1rem' }}>
-                {confirmDelete.activo === 1
-                  ? <>¿Desactivar a <strong>{confirmDelete.nombre}</strong>? No podrá iniciar sesión.</>
-                  : <>¿Reactivar a <strong>{confirmDelete.nombre}</strong>? Podrá iniciar sesión nuevamente.</>
-                }
-              </p>
-            </div>
-            <div style={s.modalFooter}>
-              <button onClick={() => setConfirmDelete(null)} style={s.btnCancelar}>Cancelar</button>
-              <button
-                onClick={() => toggleActivo(confirmDelete)}
-                style={{
-                  ...s.btnGuardar,
-                  background: confirmDelete.activo === 1 ? '#c45a5a' : '#2d7a3a'
-                }}
-              >
-                {confirmDelete.activo === 1 ? '📁 Sí, desactivar' : '♻️ Sí, reactivar'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <ConfirmDialog
+        open={!!confirmDelete}
+        onClose={() => setConfirmDelete(null)}
+        onConfirm={() => toggleActivo(confirmDelete)}
+        title={confirmDelete?.activo === 1 ? '📁 ¿Desactivar usuario?' : '♻️ ¿Reactivar usuario?'}
+        message={
+          confirmDelete?.activo === 1
+            ? <>¿Desactivar a <strong>{confirmDelete?.nombre}</strong>? No podrá iniciar sesión.</>
+            : <>¿Reactivar a <strong>{confirmDelete?.nombre}</strong>? Podrá iniciar sesión nuevamente.</>
+        }
+        confirmText={confirmDelete?.activo === 1 ? '📁 Sí, desactivar' : '♻️ Sí, reactivar'}
+      />
     </div>
   )
 }
 
 const s = {
-  pagina:       { padding: '36px 40px', height: '100%', overflowY: 'auto', background: '#f5ede6', position: 'relative' },
-  alerta:       { position: 'fixed', top: '24px', right: '24px', padding: '14px 24px', borderRadius: '12px', fontSize: '1rem', fontWeight: '600', zIndex: 2000, boxShadow: '0 4px 20px rgba(0,0,0,0.1)' },
-  header:       { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '28px' },
-  titulo:       { fontSize: '1.8rem', fontWeight: '600', color: '#2a1a12' },
-  subtitulo:    { fontSize: '0.95rem', color: '#9e7b65', marginTop: '4px' },
-  btnNuevo:     { background: '#c47c5a', color: '#fff', border: 'none', borderRadius: '10px', padding: '12px 24px', fontSize: '1rem', fontWeight: '600', cursor: 'pointer' },
-  cargando:     { textAlign: 'center', padding: '60px', color: '#9e7b65' },
-  grid:         { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '20px' },
-  card:         { background: '#fff', borderRadius: '14px', padding: '24px', boxShadow: '0 2px 12px rgba(0,0,0,0.06)', display: 'flex', flexDirection: 'column', gap: '14px' },
-  cardHeader:   { display: 'flex', alignItems: 'center', gap: '14px' },
-  avatar:       { width: '48px', height: '48px', borderRadius: '12px', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.4rem', fontWeight: '700', flexShrink: 0 },
-  cardNombre:   { fontSize: '1rem', fontWeight: '600', color: '#2a1a12' },
-  badgesFila:   { display: 'flex', gap: '6px', marginTop: '4px', flexWrap: 'wrap' },
-  rolBadge:     { fontSize: '0.75rem', padding: '2px 8px', borderRadius: '20px', fontWeight: '600' },
-  estadoBadge:  { fontSize: '0.75rem', padding: '2px 8px', borderRadius: '20px', fontWeight: '600' },
-  cardInfo:     { display: 'flex', flexDirection: 'column', gap: '6px' },
-  infoFila:     { fontSize: '0.88rem', color: '#7a5c4a' },
-  cardAcciones: { display: 'flex', gap: '8px', marginTop: '4px' },
-  btnEditar:    { background: '#f7e6d8', color: '#c47c5a', border: 'none', borderRadius: '8px', padding: '7px 14px', fontSize: '0.85rem', cursor: 'pointer', fontWeight: '600' },
-  btnToggle:    { border: 'none', borderRadius: '8px', padding: '7px 14px', fontSize: '0.85rem', cursor: 'pointer', fontWeight: '600' },
-  modalFondo:   { position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 },
-  modal:        { background: '#fff', borderRadius: '16px', width: '100%', maxWidth: '500px', boxShadow: '0 20px 60px rgba(0,0,0,0.2)' },
-  modalHeader:  { display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '24px 28px', borderBottom: '1px solid #f0e6de' },
-  modalTitulo:  { fontSize: '1.2rem', fontWeight: '600', color: '#2a1a12' },
-  btnCerrar:    { background: 'none', border: 'none', fontSize: '1.2rem', cursor: 'pointer', color: '#9e7b65' },
-  modalBody:    { padding: '24px 28px', display: 'flex', flexDirection: 'column', gap: '16px' },
-  modalFooter:  { display: 'flex', justifyContent: 'flex-end', gap: '12px', padding: '20px 28px', borderTop: '1px solid #f0e6de' },
-  campo:        { display: 'flex', flexDirection: 'column', gap: '6px' },
-  label:        { fontSize: '0.9rem', fontWeight: '600', color: '#7a5c4a' },
-  input:        { padding: '11px 14px', borderRadius: '10px', border: '1.5px solid #e8d5c4', fontSize: '0.95rem', outline: 'none', color: '#2a1a12', background: '#fffaf7', boxSizing: 'border-box', width: '100%' },
-  btnCancelar:  { background: '#f5ede6', color: '#7a5c4a', border: 'none', borderRadius: '10px', padding: '11px 24px', fontSize: '1rem', fontWeight: '600', cursor: 'pointer' },
-  btnGuardar:   { background: '#c47c5a', color: '#fff', border: 'none', borderRadius: '10px', padding: '11px 28px', fontSize: '1rem', fontWeight: '600', cursor: 'pointer' },
+  pagina: {
+    display: 'flex', flexDirection: 'column', gap: spacing.lg,
+    height: '100%', position: 'relative',
+  },
+  alerta: {
+    position: 'fixed', top: spacing.lg, right: spacing.lg,
+    padding: `${spacing.md} ${spacing.lg}`,
+    borderRadius: radius.md,
+    fontSize: typography.fontSize.lead,
+    fontWeight: typography.fontWeight.semibold,
+    zIndex: 2000, border: '1px solid',
+    boxShadow: shadows.md,
+  },
+  emptyState: {
+    textAlign: 'center', padding: spacing.xl, color: t.textSecondary,
+    fontSize: typography.fontSize.lead,
+  },
+  grid: {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))',
+    gap: spacing.md,
+  },
+  card: {
+    background: t.surface, borderRadius: radius.lg,
+    padding: spacing.lg, boxShadow: shadows.sm,
+    display: 'flex', flexDirection: 'column', gap: spacing.sm,
+    border: `1px solid ${t.borderLight}`,
+  },
+  cardHeader: { display: 'flex', alignItems: 'center', gap: spacing.md },
+  avatar: {
+    width: '48px', height: '48px', borderRadius: radius.md,
+    display: 'flex', alignItems: 'center', justifyContent: 'center',
+    fontSize: '1.4rem', fontWeight: typography.fontWeight.bold,
+    color: '#fff', flexShrink: 0,
+  },
+  cardNombre: {
+    fontSize: typography.fontSize.h3,
+    fontWeight: typography.fontWeight.semibold,
+    color: t.textPrimary, margin: 0,
+  },
+  badgesFila: {
+    display: 'flex', gap: spacing.xs, marginTop: spacing.xs, flexWrap: 'wrap',
+  },
+  cardInfo: {
+    display: 'flex', flexDirection: 'column', gap: spacing.xs,
+  },
+  infoFila: {
+    fontSize: typography.fontSize.lead, color: t.textLabel,
+    display: 'flex', alignItems: 'center', gap: spacing.xs,
+  },
+  cardAcciones: {
+    display: 'flex', gap: spacing.sm, marginTop: spacing.xs,
+  },
+  formGroup: {
+    display: 'flex', flexDirection: 'column', gap: spacing.xs,
+  },
+  label: {
+    fontSize: typography.fontSize.lead,
+    fontWeight: typography.fontWeight.semibold,
+    color: t.textLabel,
+  },
+  input: {
+    padding: '14px 16px',
+    borderRadius: radius.md,
+    border: `1.5px solid ${t.border}`,
+    fontSize: typography.fontSize.lead,
+    outline: 'none', color: t.textPrimary,
+    background: t.surface,
+    boxSizing: 'border-box', width: '100%',
+    transition: `border-color ${transitions.fast}`,
+  },
 }
