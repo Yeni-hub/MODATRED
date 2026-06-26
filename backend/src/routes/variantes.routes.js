@@ -2,15 +2,21 @@ const express = require('express')
 const router  = express.Router()
 const pool    = require('../config/db')
 const { verificarToken } = require('../middlewares/auth.middleware')
+const { validarVariante } = require('../validators')
 
 router.use(verificarToken)
 
 // Listar todas o por producto
 router.get('/', async (req, res) => {
   try {
-    const { id_producto } = req.query
+    const { id_producto, page, limit } = req.query
+    const pagina = page ? Math.max(1, Number(page)) : 1
+    const limite = limit ? Math.min(Number(limit), 500) : 100
+    const offset = (pagina - 1) * limite
+
     let sql = `
-      SELECT v.*, p.nombre AS producto, p.referencia
+      SELECT v.id_variante, v.id_producto, v.talla, v.color, v.stock, v.precio_costo, v.activa,
+             p.nombre AS producto, p.referencia
       FROM variantes v
       JOIN productos p ON p.id_producto = v.id_producto
       WHERE v.activa = 1
@@ -18,6 +24,9 @@ router.get('/', async (req, res) => {
     const params = []
     if (id_producto) { sql += ' AND v.id_producto = ?'; params.push(id_producto) }
     sql += ' ORDER BY p.nombre, v.talla, v.color'
+    if (limite) { sql += ' LIMIT ?'; params.push(limite) }
+    if (offset) { sql += ' OFFSET ?'; params.push(offset) }
+
     const [rows] = await pool.query(sql, params)
     res.json(rows)
   } catch (err) {
@@ -26,9 +35,8 @@ router.get('/', async (req, res) => {
 })
 
 // Crear
-router.post('/', async (req, res) => {
+router.post('/', validarVariante, async (req, res) => {
   const { id_producto, talla, color, stock, precio_costo } = req.body
-  if (!id_producto || !talla || !color) return res.status(400).json({ error: 'Campos obligatorios incompletos' })
   try {
     const [result] = await pool.query(
       'INSERT INTO variantes (id_producto, talla, color, stock, precio_costo) VALUES (?,?,?,?,?)',
@@ -42,9 +50,12 @@ router.post('/', async (req, res) => {
 })
 
 // Actualizar
-router.put('/:id', async (req, res) => {
+router.put('/:id', validarVariante, async (req, res) => {
   const { talla, color, stock, precio_costo } = req.body
   try {
+    const [exist] = await pool.query('SELECT id_variante FROM variantes WHERE id_variante = ?', [req.params.id])
+    if (exist.length === 0) return res.status(404).json({ error: 'Variante no encontrada' })
+
     await pool.query(
       'UPDATE variantes SET talla=?, color=?, stock=?, precio_costo=? WHERE id_variante=?',
       [talla, color, stock, precio_costo, req.params.id]
@@ -55,19 +66,11 @@ router.put('/:id', async (req, res) => {
   }
 })
 
-// Desactivar (no eliminar si tiene ventas)
+// Desactivar (soft-delete siempre para preservar integridad referencial)
 router.delete('/:id', async (req, res) => {
   try {
-    const [ventas] = await pool.query(
-      'SELECT COUNT(*) AS total FROM detalle_ventas WHERE id_variante = ?',
-      [req.params.id]
-    )
-    if (ventas[0].total > 0) {
-      await pool.query('UPDATE variantes SET activa = 0 WHERE id_variante = ?', [req.params.id])
-      return res.json({ mensaje: 'Variante desactivada (tiene ventas registradas)' })
-    }
-    await pool.query('DELETE FROM variantes WHERE id_variante = ?', [req.params.id])
-    res.json({ mensaje: 'Variante eliminada' })
+    await pool.query('UPDATE variantes SET activa = 0 WHERE id_variante = ?', [req.params.id])
+    res.json({ mensaje: 'Variante desactivada' })
   } catch (err) {
     res.status(500).json({ error: 'Error al eliminar variante' })
   }

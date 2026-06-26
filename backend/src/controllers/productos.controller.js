@@ -3,15 +3,20 @@ const pool = require('../config/db')
 
 const listar = async (req, res) => {
   try {
-    const { id_coleccion, id_categoria, stock_bajo } = req.query
+    const { id_coleccion, id_categoria, stock_bajo, page, limit } = req.query
+    const pagina = page ? Math.max(1, Number(page)) : 1
+    const limite = limit ? Math.min(Number(limit), 500) : 100
+    const offset = (pagina - 1) * limite
 
     let sql = `
-      SELECT p.*, c.nombre AS categoria, col.nombre AS coleccion,
+      SELECT p.id_producto, p.referencia, p.nombre, p.descripcion,
+             p.precio_base, p.id_categoria, p.id_coleccion, p.activo, p.creado_en,
+             c.nombre AS categoria, col.nombre AS coleccion,
              COALESCE(SUM(v.stock),0) AS stock_total
       FROM productos p
       JOIN categorias c    ON c.id_categoria  = p.id_categoria
       JOIN colecciones col ON col.id_coleccion = p.id_coleccion
-      LEFT JOIN variantes v ON v.id_producto   = p.id_producto AND v.activa = 1
+      LEFT JOIN variantes v ON v.id_producto   = p.id_producto
       WHERE p.activo = 1
     `
     const params = []
@@ -22,6 +27,8 @@ const listar = async (req, res) => {
     sql += ' GROUP BY p.id_producto'
     if (stock_bajo)   { sql += ' HAVING stock_total <= 5' }
     sql += ' ORDER BY p.nombre'
+    if (limite) { sql += ' LIMIT ?'; params.push(limite) }
+    if (offset) { sql += ' OFFSET ?'; params.push(offset) }
 
     const [rows] = await pool.query(sql, params)
     res.json(rows)

@@ -2,21 +2,33 @@ const express = require('express')
 const router  = express.Router()
 const pool    = require('../config/db')
 const { verificarToken } = require('../middlewares/auth.middleware')
+const { validarCliente } = require('../validators')
 
 router.use(verificarToken)
 
-router.get('/', async (_req, res) => {
+router.get('/', async (req, res) => {
   try {
-    const [rows] = await pool.query('SELECT * FROM clientes ORDER BY nombre')
+    const { page, limit } = req.query
+    const pagina = page ? Math.max(1, Number(page)) : 1
+    const limite = limit ? Math.min(Number(limit), 500) : 100
+    const offset = (pagina - 1) * limite
+
+    let sql = 'SELECT id_cliente, nombre, documento, tipo_doc, telefono, email, preferencias, saldo_favor, activo, creado_en FROM clientes'
+    const params = []
+
+    sql += ' ORDER BY nombre'
+    if (limite) { sql += ' LIMIT ?'; params.push(limite) }
+    if (offset) { sql += ' OFFSET ?'; params.push(offset) }
+
+    const [rows] = await pool.query(sql, params)
     res.json(rows)
   } catch (err) {
     res.status(500).json({ error: 'Error al listar clientes' })
   }
 })
 
-router.post('/', async (req, res) => {
+router.post('/', validarCliente, async (req, res) => {
   const { nombre, documento, tipo_doc, telefono, email, preferencias } = req.body
-  if (!nombre || !documento) return res.status(400).json({ error: 'Nombre y documento son obligatorios' })
   try {
     const [result] = await pool.query(
       'INSERT INTO clientes (nombre, documento, tipo_doc, telefono, email, preferencias) VALUES (?,?,?,?,?,?)',
@@ -29,9 +41,12 @@ router.post('/', async (req, res) => {
   }
 })
 
-router.put('/:id', async (req, res) => {
+router.put('/:id', validarCliente, async (req, res) => {
   const { nombre, documento, tipo_doc, telefono, email, preferencias, activo } = req.body
   try {
+    const [exist] = await pool.query('SELECT id_cliente FROM clientes WHERE id_cliente = ?', [req.params.id])
+    if (exist.length === 0) return res.status(404).json({ error: 'Cliente no encontrado' })
+
     await pool.query(
       'UPDATE clientes SET nombre=?, documento=?, tipo_doc=?, telefono=?, email=?, preferencias=?, activo=? WHERE id_cliente=?',
       [nombre, documento, tipo_doc, telefono, email, preferencias, activo ?? 1, req.params.id]

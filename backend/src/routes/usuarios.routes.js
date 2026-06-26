@@ -3,24 +3,34 @@ const router   = express.Router()
 const pool     = require('../config/db')
 const bcrypt   = require('bcryptjs')
 const { verificarToken, soloAdmin } = require('../middlewares/auth.middleware')
+const { validarUsuario } = require('../validators')
 
 router.use(verificarToken)
 router.use(soloAdmin)
 
-router.get('/', async (_req, res) => {
+router.get('/', async (req, res) => {
   try {
-    const [rows] = await pool.query(
-      'SELECT id_usuario, nombre, email, rol, activo, creado_en FROM usuarios ORDER BY nombre'
-    )
+    const { page, limit } = req.query
+    const pagina = page ? Math.max(1, Number(page)) : 1
+    const limite = limit ? Math.min(Number(limit), 500) : 100
+    const offset = (pagina - 1) * limite
+
+    let sql = 'SELECT id_usuario, nombre, email, rol, activo, creado_en FROM usuarios'
+    const params = []
+
+    sql += ' ORDER BY nombre'
+    if (limite) { sql += ' LIMIT ?'; params.push(limite) }
+    if (offset) { sql += ' OFFSET ?'; params.push(offset) }
+
+    const [rows] = await pool.query(sql, params)
     res.json(rows)
   } catch (err) {
     res.status(500).json({ error: 'Error al listar usuarios' })
   }
 })
 
-router.post('/', async (req, res) => {
+router.post('/', validarUsuario, async (req, res) => {
   const { nombre, email, password, rol } = req.body
-  if (!nombre || !email || !password) return res.status(400).json({ error: 'Campos obligatorios incompletos' })
   try {
     const hash = await bcrypt.hash(password, 10)
     const [result] = await pool.query(
@@ -34,9 +44,18 @@ router.post('/', async (req, res) => {
   }
 })
 
-router.put('/:id', async (req, res) => {
+router.put('/:id', validarUsuario, async (req, res) => {
   const { nombre, email, password, rol, activo } = req.body
   try {
+    if (activo === 0 || rol === 'vendedor') {
+      const [target] = await pool.query('SELECT rol FROM usuarios WHERE id_usuario = ?', [req.params.id])
+      if (target.length > 0 && target[0].rol === 'admin') {
+        const [admins] = await pool.query('SELECT COUNT(*) AS total FROM usuarios WHERE rol = ? AND activo = 1', ['admin'])
+        if (Number(admins[0].total) <= 1) {
+          return res.status(400).json({ error: 'No se puede desactivar o cambiar el rol del último administrador activo' })
+        }
+      }
+    }
     if (password && password.length >= 6) {
       const hash = await bcrypt.hash(password, 10)
       await pool.query(
@@ -51,6 +70,7 @@ router.put('/:id', async (req, res) => {
     }
     res.json({ mensaje: 'Usuario actualizado' })
   } catch (err) {
+    if (err.code === 'ER_DUP_ENTRY') return res.status(409).json({ error: 'El email ya existe' })
     res.status(500).json({ error: 'Error al actualizar usuario' })
   }
 })

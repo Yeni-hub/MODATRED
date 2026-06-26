@@ -1,42 +1,46 @@
-import { createContext, useContext, useState } from 'react'
+import { createContext, useContext, useState, useEffect } from 'react'
+import api from '../services/api'
 
-
-// Crear el contexto
 const AuthContext = createContext()
 
-// Proveedor del contexto
 export function AuthProvider({ children }) {
-  const [usuario, setUsuario] = useState(
-    JSON.parse(localStorage.getItem('usuario')) || null
-  )
-  const [token, setToken] = useState(
-    localStorage.getItem('token') || null
-  )
+  const [usuario, setUsuario] = useState(null)
+  const [token, setToken] = useState(null)
+  const [cargando, setCargando] = useState(true)
+
+  useEffect(() => {
+    api.get('/auth/me')
+      .then(res => {
+        setUsuario(res.data.usuario)
+        setToken('autenticado')
+      })
+      .catch(() => {
+        setUsuario(null)
+        setToken(null)
+      })
+      .finally(() => setCargando(false))
+  }, [])
 
   const login = (datos) => {
-    // Guardar en localStorage para mantener la sesión
-    localStorage.setItem('token', datos.token)
-    localStorage.setItem('usuario', JSON.stringify(datos.usuario))
-    setToken(datos.token)
+    setToken('autenticado')
     setUsuario(datos.usuario)
   }
 
-  const logout = () => {
-    // Limpiar sesión
-    localStorage.removeItem('token')
-    localStorage.removeItem('usuario')
+  const logout = async () => {
+    try {
+      await api.post('/auth/logout')
+    } catch { }
     setToken(null)
     setUsuario(null)
   }
 
   return (
-    <AuthContext.Provider value={{ usuario, token, login, logout }}>
+    <AuthContext.Provider value={{ usuario, token, login, logout, cargando }}>
       {children}
     </AuthContext.Provider>
   )
 }
 
-// Hook personalizado para usar el contexto fácilmente
 export function useAuth() {
   return useContext(AuthContext)
 }

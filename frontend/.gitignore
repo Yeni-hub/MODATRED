@@ -23,5 +23,4 @@ dist-ssr
 *.sln
 *.sw?
 
-Email: admin@modatrend.com
-Contraseña: Admin123!
+.env

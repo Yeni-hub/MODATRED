@@ -2,6 +2,7 @@ import { Component } from 'react'
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { AuthProvider }  from './context/AuthContext'
 import Layout       from './components/layout/Layout'
+import ProtectedRoute from './components/common/ProtectedRoute'
 import Login        from './pages/Login'
 import Dashboard    from './pages/Dashboard'
 import Productos    from './pages/Productos'
@@ -52,17 +53,17 @@ function App() {
       <BrowserRouter>
         <Routes>
           <Route path="/login"       element={<Login />} />
-          <Route path="/dashboard"   element={<Layout><Dashboard /></Layout>} />
-          <Route path="/productos"   element={<Layout><Productos /></Layout>} />
-          <Route path="/colecciones" element={<Layout><Colecciones /></Layout>} />
-          <Route path="/variantes"   element={<Layout><Variantes /></Layout>} />
-          <Route path="/categorias"  element={<Layout><Categorias /></Layout>} />
-          <Route path="/proveedores" element={<Layout><Proveedores /></Layout>} />
-          <Route path="/clientes"    element={<Layout><Clientes /></Layout>} />
-          <Route path="/ventas"      element={<Layout><ErrorBoundary><Ventas /></ErrorBoundary></Layout>} />
-          <Route path="/compras"     element={<Layout><Compras /></Layout>} />
-          <Route path="/reportes"    element={<Layout><Reportes /></Layout>} />
-          <Route path="/usuarios"    element={<Layout><Usuarios /></Layout>} />
+          <Route path="/dashboard"   element={<ProtectedRoute><Layout><Dashboard /></Layout></ProtectedRoute>} />
+          <Route path="/productos"   element={<ProtectedRoute><Layout><Productos /></Layout></ProtectedRoute>} />
+          <Route path="/colecciones" element={<ProtectedRoute><Layout><Colecciones /></Layout></ProtectedRoute>} />
+          <Route path="/variantes"   element={<ProtectedRoute><Layout><Variantes /></Layout></ProtectedRoute>} />
+          <Route path="/categorias"  element={<ProtectedRoute><Layout><Categorias /></Layout></ProtectedRoute>} />
+          <Route path="/proveedores" element={<ProtectedRoute><Layout><Proveedores /></Layout></ProtectedRoute>} />
+          <Route path="/clientes"    element={<ProtectedRoute><Layout><Clientes /></Layout></ProtectedRoute>} />
+          <Route path="/ventas"      element={<ProtectedRoute><Layout><ErrorBoundary><Ventas /></ErrorBoundary></Layout></ProtectedRoute>} />
+          <Route path="/compras"     element={<ProtectedRoute><Layout><Compras /></Layout></ProtectedRoute>} />
+          <Route path="/reportes"    element={<ProtectedRoute><Layout><Reportes /></Layout></ProtectedRoute>} />
+          <Route path="/usuarios"    element={<ProtectedRoute><Layout><Usuarios /></Layout></ProtectedRoute>} />
           <Route path="*"            element={<Navigate to="/login" />} />
         </Routes>
       </BrowserRouter>

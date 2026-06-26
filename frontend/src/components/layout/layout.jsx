@@ -35,13 +35,15 @@ const moduleColors = {
 }
 
 export default function Layout({ children }) {
-  const { usuario, token, logout } = useAuth()
+  const { usuario, token, logout, cargando } = useAuth()
   const navigate = useNavigate()
   const location = useLocation()
 
   useEffect(() => {
-    if (!token) navigate('/login', { replace: true })
-  }, [token])
+    if (!cargando && !token) navigate('/login', { replace: true })
+  }, [token, cargando])
+
+  if (cargando) return null
 
   const handleLogout = () => { logout(); navigate('/login') }
   const currentColor = moduleColors[location.pathname] || a.lilac

@@ -92,6 +92,10 @@ export default function Ventas() {
       mostrarAlerta(`Stock insuficiente. Disponible: ${variante.stock} uds`, 'error')
       return
     }
+    if (Number(itemActual.precio_venta) < Number(variante.precio_costo)) {
+      mostrarAlerta(`El precio de venta ($${Number(itemActual.precio_venta).toLocaleString('es-CO')}) no puede ser menor al costo ($${Number(variante.precio_costo).toLocaleString('es-CO')})`, 'error')
+      return
+    }
     setForm({
       ...form,
       items: [...form.items, {

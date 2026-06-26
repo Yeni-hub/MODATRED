@@ -2,28 +2,40 @@ const express = require('express')
 const router  = express.Router()
 const pool    = require('../config/db')
 const { verificarToken } = require('../middlewares/auth.middleware')
+const { validarCompra } = require('../validators')
 
 router.use(verificarToken)
 
-router.get('/', async (_req, res) => {
+router.get('/', async (req, res) => {
   try {
-    const [rows] = await pool.query(`
+    const { page, limit } = req.query
+    const pagina = page ? Math.max(1, Number(page)) : 1
+    const limite = limit ? Math.min(Number(limit), 500) : 100
+    const offset = (pagina - 1) * limite
+
+    let sql = `
       SELECT c.id_compra, c.fecha, c.total, c.observaciones,
              p.nombre AS proveedor, u.nombre AS usuario
       FROM compras c
       JOIN proveedores p ON p.id_proveedor = c.id_proveedor
       JOIN usuarios u    ON u.id_usuario   = c.id_usuario
       ORDER BY c.fecha DESC
-    `)
+    `
+    const params = []
+    if (limite) { sql += ' LIMIT ?'; params.push(limite) }
+    if (offset) { sql += ' OFFSET ?'; params.push(offset) }
+
+    const [rows] = await pool.query(sql, params)
     res.json(rows)
   } catch (err) {
     res.status(500).json({ error: 'Error al listar compras' })
   }
 })
 
-router.post('/', async (req, res) => {
-  const conn = await pool.getConnection()
+router.post('/', validarCompra, async (req, res) => {
+  let conn
   try {
+    conn = await pool.getConnection()
     await conn.beginTransaction()
     const { id_proveedor, items, observaciones } = req.body
     let total = 0
@@ -51,10 +63,11 @@ router.post('/', async (req, res) => {
     await conn.commit()
     res.status(201).json({ id_compra, total, mensaje: 'Compra registrada y stock actualizado' })
   } catch (err) {
-    await conn.rollback()
+    if (conn) await conn.rollback()
+    console.error('Error al registrar compra:', err)
     res.status(500).json({ error: 'Error al registrar compra' })
   } finally {
-    conn.release()
+    if (conn) conn.release()
   }
 })
 

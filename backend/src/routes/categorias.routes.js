@@ -2,21 +2,23 @@ const express = require('express')
 const router  = express.Router()
 const pool    = require('../config/db')
 const { verificarToken } = require('../middlewares/auth.middleware')
+const { validarCategoria } = require('../validators')
 
 router.use(verificarToken)
 
 router.get('/', async (_req, res) => {
   try {
-    const [rows] = await pool.query('SELECT * FROM categorias ORDER BY nombre')
+    const [rows] = await pool.query(
+      'SELECT id_categoria, nombre, descripcion FROM categorias ORDER BY nombre'
+    )
     res.json(rows)
   } catch (err) {
     res.status(500).json({ error: 'Error al listar categorías' })
   }
 })
 
-router.post('/', async (req, res) => {
+router.post('/', validarCategoria, async (req, res) => {
   const { nombre, descripcion } = req.body
-  if (!nombre) return res.status(400).json({ error: 'El nombre es obligatorio' })
   try {
     const [result] = await pool.query(
       'INSERT INTO categorias (nombre, descripcion) VALUES (?,?)',
@@ -28,10 +30,12 @@ router.post('/', async (req, res) => {
   }
 })
 
-router.put('/:id', async (req, res) => {
+router.put('/:id', validarCategoria, async (req, res) => {
   const { nombre, descripcion } = req.body
-  if (!nombre) return res.status(400).json({ error: 'El nombre es obligatorio' })
   try {
+    const [exist] = await pool.query('SELECT id_categoria FROM categorias WHERE id_categoria = ?', [req.params.id])
+    if (exist.length === 0) return res.status(404).json({ error: 'Categoría no encontrada' })
+
     await pool.query(
       'UPDATE categorias SET nombre=?, descripcion=? WHERE id_categoria=?',
       [nombre, descripcion || null, req.params.id]

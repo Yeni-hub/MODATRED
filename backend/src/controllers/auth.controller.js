@@ -47,9 +47,16 @@ const login = async (req, res) => {
       { expiresIn: process.env.JWT_EXPIRES_IN || '8h' }
     );
 
-    // Responder con el token y datos del usuario
+    const SEGUNDOS_8H = 8 * 60 * 60
+
+    res.cookie('token', token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'strict',
+      maxAge: SEGUNDOS_8H * 1000,
+    })
+
     res.json({
-      token,
       usuario: {
         id_usuario: usuario.id_usuario,
         nombre:     usuario.nombre,
@@ -64,4 +71,19 @@ const login = async (req, res) => {
   }
 };
 
-module.exports = { login };
+const me = async (req, res) => {
+  res.json({
+    usuario: {
+      id_usuario: req.usuario.id_usuario,
+      nombre: req.usuario.nombre,
+      rol: req.usuario.rol,
+    },
+  })
+}
+
+const logout = async (_req, res) => {
+  res.clearCookie('token', { httpOnly: true, sameSite: 'strict' })
+  res.json({ mensaje: 'Sesión cerrada' })
+}
+
+module.exports = { login, me, logout };

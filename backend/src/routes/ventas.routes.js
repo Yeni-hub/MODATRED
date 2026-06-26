@@ -2,13 +2,18 @@ const express = require('express')
 const router  = express.Router()
 const pool    = require('../config/db')
 const { verificarToken } = require('../middlewares/auth.middleware')
+const { validarVenta, validarEstadoVenta, validarSaldoFavor } = require('../validators')
 
 router.use(verificarToken)
 
 // Listar ventas
 router.get('/', async (req, res) => {
   try {
-    const { estado } = req.query
+    const { estado, page, limit } = req.query
+    const pagina = page ? Math.max(1, Number(page)) : 1
+    const limite = limit ? Math.min(Number(limit), 500) : 100
+    const offset = (pagina - 1) * limite
+
     let sql = `
       SELECT v.id_venta, v.fecha, v.descuento_pct, v.total_bruto, v.total_neto,
              v.estado, v.metodo_pago, v.observaciones,
@@ -22,6 +27,9 @@ router.get('/', async (req, res) => {
     const params = []
     if (estado) { sql += ' AND v.estado = ?'; params.push(estado) }
     sql += ' ORDER BY v.fecha DESC'
+    if (limite) { sql += ' LIMIT ?'; params.push(limite) }
+    if (offset) { sql += ' OFFSET ?'; params.push(offset) }
+
     const [rows] = await pool.query(sql, params)
     res.json(rows)
   } catch (err) {
@@ -60,9 +68,10 @@ router.get('/:id', async (req, res) => {
 })
 
 // Crear venta
-router.post('/', async (req, res) => {
-  const conn = await pool.getConnection()
+router.post('/', validarVenta, async (req, res) => {
+  let conn
   try {
+    conn = await pool.getConnection()
     await conn.beginTransaction()
     const { id_cliente, descuento_pct = 0, metodo_pago = 'efectivo', items, observaciones } = req.body
 
@@ -134,35 +143,52 @@ router.post('/', async (req, res) => {
     await conn.commit()
     res.status(201).json({ id_venta, total_bruto, total_neto, mensaje: 'Venta registrada exitosamente' })
   } catch (err) {
-    await conn.rollback()
+    if (conn) await conn.rollback()
     if (err.status) return res.status(err.status).json({ error: err.message })
     console.error(err)
     res.status(500).json({ error: 'Error al registrar venta' })
+  } finally {
+    if (conn) conn.release()
+  }
+})
+
+const TRANSICIONES = {
+  confirmada:  ['en_entrega'],
+  en_entrega:  ['entregada'],
+  entregada:   [],
+  anulada:     [],
+}
+
+// Actualizar estado del pedido (solo permite transiciones válidas hacia adelante)
+router.put('/:id/estado', validarEstadoVenta, async (req, res) => {
+  const { estado } = req.body
+  const conn = await pool.getConnection()
+  try {
+    const [venta] = await conn.query('SELECT estado FROM ventas WHERE id_venta = ?', [req.params.id])
+    if (venta.length === 0) return res.status(404).json({ error: 'Venta no encontrada' })
+
+    const actual = venta[0].estado
+    if (!TRANSICIONES[actual]?.includes(estado)) {
+      return res.status(400).json({
+        error: `No se puede cambiar de "${actual}" a "${estado}". Las transiciones válidas son: ${TRANSICIONES[actual]?.join(', ') || 'ninguna'}`
+      })
+    }
+
+    await conn.query('UPDATE ventas SET estado = ? WHERE id_venta = ?', [estado, req.params.id])
+    res.json({ mensaje: `Estado actualizado a: ${estado}` })
+  } catch (err) {
+    console.error('Error al actualizar estado:', err)
+    res.status(500).json({ error: 'Error al actualizar estado' })
   } finally {
     conn.release()
   }
 })
 
-// Actualizar estado del pedido
-router.put('/:id/estado', async (req, res) => {
-  const { estado } = req.body
-  const estadosValidos = ['confirmada', 'en_entrega', 'entregada', 'anulada']
-  if (!estadosValidos.includes(estado)) {
-    return res.status(400).json({ error: 'Estado no válido' })
-  }
-  try {
-    await pool.query('UPDATE ventas SET estado = ? WHERE id_venta = ?', [estado, req.params.id])
-    res.json({ mensaje: `Estado actualizado a: ${estado}` })
-  } catch (err) {
-    console.error('Error al actualizar estado:', err)
-    res.status(500).json({ error: 'Error al actualizar estado' })
-  }
-})
-
 // Anular venta y restaurar stock
 router.put('/:id/anular', async (req, res) => {
-  const conn = await pool.getConnection()
+  let conn
   try {
+    conn = await pool.getConnection()
     await conn.beginTransaction()
     const [venta] = await conn.query('SELECT * FROM ventas WHERE id_venta = ?', [req.params.id])
     if (venta.length === 0) return res.status(404).json({ error: 'Venta no encontrada' })
@@ -188,29 +214,36 @@ router.put('/:id/anular', async (req, res) => {
     await conn.commit()
     res.json({ mensaje: 'Venta anulada y stock restaurado' })
   } catch (err) {
-    await conn.rollback()
+    if (conn) await conn.rollback()
     console.error('Error al anular venta:', err)
     res.status(500).json({ error: 'Error al anular venta' })
   } finally {
-    conn.release()
+    if (conn) conn.release()
   }
 })
 
 // Agregar saldo a favor a un cliente
-router.post('/saldo-favor', async (req, res) => {
-  const { id_cliente, monto } = req.body
-  if (!id_cliente || !monto || monto <= 0) {
-    return res.status(400).json({ error: 'Cliente y monto válido son obligatorios' })
-  }
+router.post('/saldo-favor', validarSaldoFavor, async (req, res) => {
+  let conn
   try {
-    await pool.query(
+    conn = await pool.getConnection()
+    await conn.beginTransaction()
+    const { id_cliente, monto } = req.body
+    const [cliente] = await conn.query('SELECT id_cliente FROM clientes WHERE id_cliente = ?', [id_cliente])
+    if (cliente.length === 0) throw { status: 404, message: 'Cliente no encontrado' }
+    await conn.query(
       'UPDATE clientes SET saldo_favor = saldo_favor + ? WHERE id_cliente = ?',
       [monto, id_cliente]
     )
+    await conn.commit()
     res.json({ mensaje: `Saldo de $${monto} agregado exitosamente` })
   } catch (err) {
+    if (conn) await conn.rollback()
+    if (err.status) return res.status(err.status).json({ error: err.message })
     console.error('Error al agregar saldo:', err)
     res.status(500).json({ error: 'Error al agregar saldo' })
+  } finally {
+    if (conn) conn.release()
   }
 })
 

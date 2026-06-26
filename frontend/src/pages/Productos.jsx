@@ -23,6 +23,12 @@ export default function Productos() {
   const [modal, setModal] = useState(false)
   const [editando, setEditando] = useState(null)
   const [confirmDelete, setConfirmDelete] = useState(null)
+  const [alerta, setAlerta] = useState({ visible: false, mensaje: '', tipo: 'exito' })
+
+  const mostrarAlerta = (mensaje, tipo = 'exito') => {
+    setAlerta({ visible: true, mensaje, tipo })
+    setTimeout(() => setAlerta({ visible: false, mensaje: '', tipo: 'exito' }), 3000)
+  }
 
   const [form, setForm] = useState({
     referencia: '', nombre: '', descripcion: '',
@@ -72,7 +78,7 @@ export default function Productos() {
 
   const guardar = async () => {
     if (!form.referencia || !form.nombre || !form.precio_base || !form.id_categoria || !form.id_coleccion) {
-      alert('Completa todos los campos obligatorios')
+      mostrarAlerta('Completa todos los campos obligatorios', 'error')
       return
     }
     try {
@@ -84,7 +90,7 @@ export default function Productos() {
       setModal(false)
       cargarDatos()
     } catch (err) {
-      alert(err.response?.data?.error || 'Error al guardar')
+      mostrarAlerta(err.response?.data?.error || 'Error al guardar', 'error')
     }
   }
 
@@ -95,7 +101,7 @@ export default function Productos() {
       cargarDatos()
     } catch (err) {
       console.error(err)
-      alert('Error al eliminar producto')
+      mostrarAlerta('Error al eliminar producto', 'error')
     }
   }
 
@@ -128,6 +134,22 @@ export default function Productos() {
 
   return (
     <div style={s.pagina}>
+      {alerta.visible && (
+        <div style={{
+          position: 'fixed', top: spacing.lg, right: spacing.lg,
+          padding: `${spacing.md} ${spacing.lg}`,
+          borderRadius: radius.md,
+          fontSize: typography.fontSize.lead,
+          fontWeight: typography.fontWeight.semibold,
+          zIndex: 2000, border: '1px solid',
+          boxShadow: shadows.md,
+          background: alerta.tipo === 'exito' ? '#e6f4ea' : '#fff5f5',
+          borderColor: alerta.tipo === 'exito' ? t.success : t.danger,
+          color: alerta.tipo === 'exito' ? t.success : t.danger,
+        }}>
+          {alerta.tipo === 'exito' ? '✅' : '❌'} {alerta.mensaje}
+        </div>
+      )}
 
       <SectionHeader
         title="Productos"

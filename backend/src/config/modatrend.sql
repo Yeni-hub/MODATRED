@@ -233,6 +233,9 @@ CREATE TABLE `variantes` (
   `activa` tinyint(1) NOT NULL DEFAULT 1
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+ALTER TABLE `variantes`
+  ADD CONSTRAINT `ck_variantes_stock` CHECK (`stock` >= 0);
+
 -- --------------------------------------------------------
 
 --
@@ -251,6 +254,9 @@ CREATE TABLE `ventas` (
   `metodo_pago` enum('efectivo','tarjeta','credito','saldo_favor') NOT NULL DEFAULT 'efectivo',
   `observaciones` text DEFAULT NULL
 ) ;
+
+ALTER TABLE `ventas`
+  ADD CONSTRAINT `ck_ventas_descuento` CHECK (`descuento_pct` >= 0 AND `descuento_pct` <= 100);
 
 --
 -- Índices para tablas volcadas
@@ -337,6 +343,14 @@ ALTER TABLE `ventas`
   ADD PRIMARY KEY (`id_venta`),
   ADD KEY `id_cliente` (`id_cliente`),
   ADD KEY `id_usuario` (`id_usuario`);
+
+--
+-- Índices adicionales para rendimiento
+--
+ALTER TABLE `ventas` ADD INDEX `idx_ventas_fecha` (`fecha`);
+ALTER TABLE `ventas` ADD INDEX `idx_ventas_estado` (`estado`);
+ALTER TABLE `variantes` ADD INDEX `idx_variantes_stock` (`stock`);
+ALTER TABLE `detalle_ventas` ADD INDEX `idx_detalle_ventas_id_variante` (`id_variante`);
 
 --
 -- AUTO_INCREMENT de las tablas volcadas
