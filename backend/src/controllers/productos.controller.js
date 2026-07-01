@@ -1,4 +1,3 @@
-require('dotenv').config({ path: require('path').resolve(__dirname, '../../.env') })
 const pool = require('../config/db')
 
 const listar = async (req, res) => {

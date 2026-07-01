@@ -8,7 +8,6 @@ import ConfirmDialog from '../components/ui/ConfirmDialog'
 
 const { colors, spacing, radius, typography, shadows, transitions } = tokens
 const t = colors.warm
-const a = colors.accent
 
 export default function Categorias() {
   const [categorias, setCategorias] = useState([])
@@ -23,7 +22,7 @@ export default function Categorias() {
     try {
       const { data } = await api.get('/categorias')
       setCategorias(data)
-    } catch { } finally { setCargando(false) }
+    } catch { /* ignore */ } finally { setCargando(false) }
   }
 
   useEffect(() => { cargar() }, [])

@@ -3,7 +3,7 @@ import { useAuth } from '../../context/AuthContext'
 import { useNavigate, useLocation } from 'react-router-dom'
 import tokens from '../../styles/tokens'
 
-const { colors, spacing, radius, typography, shadows, transitions } = tokens
+const { colors, spacing, radius, typography, transitions } = tokens
 const t = colors.warm
 const a = colors.accent
 

@@ -3,7 +3,6 @@ import api from '../services/api'
 import tokens from '../styles/tokens'
 import SectionHeader from '../components/ui/SectionHeader'
 import Button from '../components/ui/Button'
-import Modal from '../components/ui/Modal'
 import ConfirmDialog from '../components/ui/ConfirmDialog'
 
 const { colors, spacing, radius, typography, shadows, transitions } = tokens
@@ -13,7 +12,7 @@ const a = colors.accent
 const validarForm = (form) => {
   const errores = {}
   if (!form.nombre.trim()) errores.nombre = 'El nombre es obligatorio'
-  if (form.nit && !/^[\d\-]+$/.test(form.nit)) errores.nit = 'El NIT solo debe contener números y guiones'
+  if (form.nit && !/^[\d-]+$/.test(form.nit)) errores.nit = 'El NIT solo debe contener números y guiones'
   if (form.telefono && !/^\d+$/.test(form.telefono)) errores.telefono = 'El teléfono solo debe contener números'
   if (form.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) errores.email = 'El correo no es válido (debe contener @)'
   return errores
@@ -42,7 +41,7 @@ export default function Proveedores() {
     try {
       const { data } = await api.get('/proveedores')
       setProveedores(data)
-    } catch { } finally { setCargando(false) }
+    } catch { /* ignore */ } finally { setCargando(false) }
   }
 
   useEffect(() => { cargar() }, [])

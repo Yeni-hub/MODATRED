@@ -4,18 +4,15 @@ const CSRF_COOKIE = 'csrf_token'
 const CSRF_HEADER = 'x-csrf-token'
 
 const generarCsrf = (req, res, next) => {
-  if (req.cookies?.[CSRF_COOKIE]) {
-    req.csrfToken = req.cookies[CSRF_COOKIE]
-    return next()
+  if (!req.cookies?.[CSRF_COOKIE]) {
+    const token = crypto.randomBytes(32).toString('hex')
+    res.cookie(CSRF_COOKIE, token, {
+      httpOnly: false,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'strict',
+      maxAge: 24 * 60 * 60 * 1000,
+    })
   }
-  const token = crypto.randomBytes(32).toString('hex')
-  res.cookie(CSRF_COOKIE, token, {
-    httpOnly: false,
-    secure: process.env.NODE_ENV === 'production',
-    sameSite: 'strict',
-    maxAge: 24 * 60 * 60 * 1000,
-  })
-  req.csrfToken = token
   next()
 }
 

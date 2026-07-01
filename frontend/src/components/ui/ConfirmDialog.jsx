@@ -1,7 +1,7 @@
 import tokens from '../../styles/tokens'
 import Modal from './Modal'
 
-const { colors, spacing, radius, typography } = tokens
+const { colors, radius, typography } = tokens
 const t = colors.warm
 
 export default function ConfirmDialog({ open, onClose, onConfirm, title, message, confirmText, confirmVariant = 'danger' }) {

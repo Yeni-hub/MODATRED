@@ -11,7 +11,6 @@ const { colors, spacing, radius, typography, shadows, transitions } = tokens
 const t = colors.warm
 
 const safeArray = (data) => Array.isArray(data) ? data.filter(x => x != null) : []
-const safeObject = (obj) => obj ?? {}
 
 const ESTADOS = {
   confirmada:  { label: 'Confirmada',        color: t.success, bg: '#e6f4ea', icono: '✅' },
@@ -28,7 +27,6 @@ const METODOS_PAGO = [
 ]
 
 export default function Ventas() {
-  console.log('🧪 Ventas component MOUNTED');
   const [ventas, setVentas] = useState([])
   const [clientes, setClientes] = useState([])
   const [variantes, setVariantes] = useState([])
@@ -192,12 +190,6 @@ export default function Ventas() {
     return acc
   }, {})
 
-  console.log('🧪 ventas:', ventas, '| cargando:', cargando, '| modal:', modal);
-  console.log('🧪 clientes:', clientes);
-  console.log('🧪 variantes:', variantes);
-  console.log('🧪 form:', form);
-  console.log('🧪 detalle:', detalle);
-
   return (
     <div style={s.pagina}>
       {alerta.visible && (
@@ -255,7 +247,6 @@ export default function Ventas() {
               </tr>
             </thead>
             <tbody>
-              {console.log('🧪 ventasSeguras (corregido):', ventasSeguras, '| nulos:', ventasSeguras.filter(x => x == null))}
               {ventasSeguras.filter(v => v != null).map(v => (
                 <tr key={v?.id_venta} style={s.tr}>
                   <td style={s.td}>

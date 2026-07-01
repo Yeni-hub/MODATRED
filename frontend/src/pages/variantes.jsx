@@ -8,9 +8,8 @@ import DataTable from '../components/ui/DataTable'
 import Modal from '../components/ui/Modal'
 import ConfirmDialog from '../components/ui/ConfirmDialog'
 
-const { colors, spacing, radius, typography, shadows, transitions } = tokens
+const { colors, spacing, radius, typography, transitions } = tokens
 const t = colors.warm
-const a = colors.accent
 
 const safeArray = (data) => Array.isArray(data) ? data.filter(x => x != null) : []
 

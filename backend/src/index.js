@@ -7,6 +7,7 @@ const cookieParser      = require('cookie-parser')
 const rateLimit         = require('express-rate-limit')
 const { generarCsrf, verificarCsrf } = require('./middlewares/csrf.middleware')
 const sanitizeInput = require('./middlewares/sanitize.middleware')
+const errorHandler = require('./middlewares/error.middleware')
 
 const authRoutes        = require('./routes/auth.routes')
 const productosRoutes   = require('./routes/productos.routes')
@@ -80,7 +81,8 @@ app.use('/api/compras',     comprasRoutes)
 app.use('/api/reportes',    reportesRoutes)
 app.use('/api/usuarios',    usuariosRoutes)
 
-app.get('/api/health', (_req, res) => res.json({ status: 'ok' }))
+app.get('/api/health', (_req, res) => res.json({ status: 'ok', timestamp: new Date().toISOString() }))
 app.use((_req, res) => res.status(404).json({ error: 'Ruta no encontrada' }))
+app.use(errorHandler)
 
 app.listen(PORT, () => console.log(`🚀 Servidor corriendo en http://localhost:${PORT}`))

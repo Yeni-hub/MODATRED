@@ -47,6 +47,16 @@ class ErrorBoundary extends Component {
   }
 }
 
+function NotFound() {
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100vh', gap: 16 }}>
+      <h1 style={{ fontSize: 72, color: '#F78DA7', margin: 0 }}>404</h1>
+      <p style={{ fontSize: 18, color: '#4B5563' }}>Página no encontrada</p>
+      <a href="/login" style={{ color: '#F78DA7', textDecoration: 'underline' }}>Volver al inicio</a>
+    </div>
+  )
+}
+
 function App() {
   return (
     <AuthProvider>
@@ -64,7 +74,8 @@ function App() {
           <Route path="/compras"     element={<ProtectedRoute><Layout><Compras /></Layout></ProtectedRoute>} />
           <Route path="/reportes"    element={<ProtectedRoute><Layout><Reportes /></Layout></ProtectedRoute>} />
           <Route path="/usuarios"    element={<ProtectedRoute><Layout><Usuarios /></Layout></ProtectedRoute>} />
-          <Route path="*"            element={<Navigate to="/login" />} />
+          <Route path="/"            element={<Navigate to="/dashboard" />} />
+          <Route path="*"            element={<NotFound />} />
         </Routes>
       </BrowserRouter>
     </AuthProvider>

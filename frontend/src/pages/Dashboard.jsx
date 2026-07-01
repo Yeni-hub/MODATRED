@@ -14,7 +14,6 @@ const { colors, spacing, radius, typography, shadows, transitions } = tokens
 const t = colors.dark
 
 const safeArray = (data) => Array.isArray(data) ? data.filter(x => x != null) : []
-const safeObject = (obj) => obj ?? {}
 
 export default function Dashboard() {
   const { usuario } = useAuth()

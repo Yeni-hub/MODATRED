@@ -32,7 +32,7 @@ export default function Usuarios() {
     try {
       const { data } = await api.get('/usuarios')
       setUsuarios(data)
-    } catch { } finally { setCargando(false) }
+    } catch { /* ignore */ } finally { setCargando(false) }
   }
 
   useEffect(() => { cargar() }, [])

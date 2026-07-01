@@ -1,15 +1,15 @@
 import { useState, useEffect } from 'react'
 import api from '../services/api'
 import tokens from '../styles/tokens'
+import { safeArray } from '../utils/helpers'
 import SectionHeader from '../components/ui/SectionHeader'
 import Button from '../components/ui/Button'
 import Badge from '../components/ui/Badge'
 import DataTable from '../components/ui/DataTable'
+import Alert from '../components/ui/Alert'
 
 const { colors, spacing, radius, typography, shadows, transitions } = tokens
 const t = colors.warm
-
-const safeArray = (data) => Array.isArray(data) ? data.filter(x => x != null) : []
 
 export default function Productos() {
   const [productos, setProductos] = useState([])
@@ -23,17 +23,16 @@ export default function Productos() {
   const [modal, setModal] = useState(false)
   const [editando, setEditando] = useState(null)
   const [confirmDelete, setConfirmDelete] = useState(null)
-  const [alerta, setAlerta] = useState({ visible: false, mensaje: '', tipo: 'exito' })
-
-  const mostrarAlerta = (mensaje, tipo = 'exito') => {
-    setAlerta({ visible: true, mensaje, tipo })
-    setTimeout(() => setAlerta({ visible: false, mensaje: '', tipo: 'exito' }), 3000)
-  }
+  const [alerta, setAlerta] = useState({ mensaje: '', tipo: 'success' })
 
   const [form, setForm] = useState({
     referencia: '', nombre: '', descripcion: '',
     precio_base: '', id_categoria: '', id_coleccion: ''
   })
+
+  const mostrarAlerta = (mensaje, tipo = 'success') => {
+    setAlerta({ mensaje, tipo })
+  }
 
   const cargarDatos = async () => {
     setCargando(true)
@@ -134,22 +133,8 @@ export default function Productos() {
 
   return (
     <div style={s.pagina}>
-      {alerta.visible && (
-        <div style={{
-          position: 'fixed', top: spacing.lg, right: spacing.lg,
-          padding: `${spacing.md} ${spacing.lg}`,
-          borderRadius: radius.md,
-          fontSize: typography.fontSize.lead,
-          fontWeight: typography.fontWeight.semibold,
-          zIndex: 2000, border: '1px solid',
-          boxShadow: shadows.md,
-          background: alerta.tipo === 'exito' ? '#e6f4ea' : '#fff5f5',
-          borderColor: alerta.tipo === 'exito' ? t.success : t.danger,
-          color: alerta.tipo === 'exito' ? t.success : t.danger,
-        }}>
-          {alerta.tipo === 'exito' ? '✅' : '❌'} {alerta.mensaje}
-        </div>
-      )}
+      <Alert mensaje={alerta.mensaje} tipo={alerta.tipo}
+        onClose={() => setAlerta({ mensaje: '', tipo: 'success' })} />
 
       <SectionHeader
         title="Productos"
@@ -158,7 +143,6 @@ export default function Productos() {
         theme="warm"
       />
 
-      {/* Filtros */}
       <div style={s.filtros}>
         <input
           placeholder="🔍 Buscar por nombre o referencia..."
@@ -180,7 +164,6 @@ export default function Productos() {
         </label>
       </div>
 
-      {/* Tabla */}
       {cargando ? (
         <div style={s.emptyState}>Cargando productos...</div>
       ) : (
@@ -192,7 +175,6 @@ export default function Productos() {
         />
       )}
 
-      {/* Modal formulario */}
       {modal && (
         <div style={s.modalFondo}>
           <div style={s.modal}>
@@ -265,7 +247,6 @@ export default function Productos() {
         </div>
       )}
 
-      {/* Confirmar eliminar */}
       {confirmDelete && (
         <div style={s.modalFondo}>
           <div style={{ ...s.modal, maxWidth: '440px' }}>

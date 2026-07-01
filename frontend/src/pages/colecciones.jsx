@@ -9,7 +9,6 @@ import ConfirmDialog from '../components/ui/ConfirmDialog'
 
 const { colors, spacing, radius, typography, shadows, transitions } = tokens
 const t = colors.warm
-const a = colors.accent
 
 const TEMPORADAS = ['primavera-verano', 'otoño-invierno', 'crucero', 'resort']
 
@@ -26,7 +25,7 @@ export default function Colecciones() {
     try {
       const { data } = await api.get('/colecciones')
       setColecciones(data)
-    } catch { } finally { setCargando(false) }
+    } catch { /* ignore */ } finally { setCargando(false) }
   }
 
   useEffect(() => { cargar() }, [])
@@ -62,16 +61,6 @@ export default function Colecciones() {
       setConfirmDelete(null)
       cargar()
     } catch { alert('Error al archivar colección') }
-  }
-
-  const badgeVariant = (temporada) => {
-    const map = {
-      'primavera-verano': 'rose',
-      'otoño-invierno': 'lilac',
-      'crucero': 'mint',
-      'resort': 'blue',
-    }
-    return map[temporada] || 'neutral'
   }
 
   return (

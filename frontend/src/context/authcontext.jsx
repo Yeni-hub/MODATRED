@@ -29,7 +29,7 @@ export function AuthProvider({ children }) {
   const logout = async () => {
     try {
       await api.post('/auth/logout')
-    } catch { }
+    } catch { /* ignore */ }
     setToken(null)
     setUsuario(null)
   }
